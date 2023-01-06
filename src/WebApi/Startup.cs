@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.EntityFrameworkCore;
 
 namespace WebApi
 {
@@ -18,6 +19,8 @@ namespace WebApi
         {
             services.AddControllers();
             services.AddSwaggerGen();
+            services.AddDbContext<Models.CustomerDbContext>(optionsBuilder => 
+            optionsBuilder.UseInMemoryDatabase(nameof(Models.CustomerDbContext)));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

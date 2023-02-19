@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Threading.Tasks;
-using CommandLine;
 using Microsoft.Extensions.Configuration;
 using System.IO;
 
@@ -20,10 +19,43 @@ namespace WebClient
 
         static async Task Main(string[] args)
         {
+            string? uriStr = ConfigurationRoot.GetConnectionString("DefaultConnection");
 
-            var parseResult = CommandLine.Parser.Default.ParseArguments<Options>(args);
+            if (uriStr == null)
+            {
+                Console.WriteLine("Wrong connection string (appsettings.json)");
+                return;
+            }
 
-            await parseResult.WithParsedAsync<Options>(RunAsync);
+            using (var client = new CustomerClient(new Uri((string)uriStr)))
+            {
+                bool exitFlag = false;
+                while (!exitFlag)
+                {
+                    PrintHelp();
+                    char key = Console.ReadKey().KeyChar;
+                    if (key == 'g' || key == 'G')
+                    {
+                        Console.WriteLine();
+                        await ExecuteGetCustomerAsync(client);
+                    }
+                    else if (key == 'p' || key == 'P')
+                    {
+                        Console.WriteLine();
+                        await ExecutePostCustomerAsync(client, RandomCustomer());
+                    }
+                    else if (key == 'x' || key == 'X')
+                    {
+                        exitFlag = true;
+                    }
+                    else 
+                    {
+                        Console.WriteLine();
+                        Console.WriteLine("Wrong key entered");
+                    }
+                }
+
+            }
 
         }
 
@@ -32,39 +64,25 @@ namespace WebClient
             return new CustomerCreateRequest(Faker.Name.First(), Faker.Name.Last());
         }
 
-        static async Task RunAsync(Options options)
+        static async Task ExecuteGetCustomerAsync(CustomerClient client)
         {
-            string? uriStr = ConfigurationRoot.GetConnectionString("DefaultConnection");
-
-            if (uriStr == null)
+            bool entered = false;
+            long id = 0;
+            while (!entered)
             {
-                Console.WriteLine("Неверно задан адрес подключения (appsettings.json)");
-                return;
+                Console.WriteLine("Enter customer id:");
+                entered = long.TryParse(Console.ReadLine(), out id);
             }
-
-            using (var client = new CustomerClient(new Uri((string)uriStr)))
-            {
-
-                if (options.Id != null)
-                {
-                    await GetCustomerAsync(client, (long)options.Id);
-                }
-
-                if (options.PostRequired)
-                {
-                    await PostCustomerAsync(client, RandomCustomer());
-                }
-
-            }
-
+            await GetCustomerAsync(client, id);
         }
+
 
         static async Task GetCustomerAsync(CustomerClient client, long id)
         {
             Customer? customer = await client.GetAsync(id);
             if (customer != null)
             {
-                Console.WriteLine(customer.Firstname + " " + customer.Lastname);
+                Console.WriteLine("Result: "+customer.Firstname + " " + customer.Lastname);
             }
             else
             {
@@ -72,11 +90,19 @@ namespace WebClient
             }
         }
 
-        static async Task PostCustomerAsync(CustomerClient client, CustomerCreateRequest request)
+        static async Task ExecutePostCustomerAsync(CustomerClient client, CustomerCreateRequest request)
         {
             long id = await client.PostAsync(request);
             Console.WriteLine("Added new customer with id " + id);
             await GetCustomerAsync(client, id);
+        }
+
+        static void PrintHelp()
+        {
+            Console.WriteLine("g - get customer with specified id");
+            Console.WriteLine("p - post random generated customer");
+            Console.WriteLine("x - exit");
+            Console.WriteLine("Press selected key:");
         }
 
     }
